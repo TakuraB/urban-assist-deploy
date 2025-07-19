@@ -37,6 +37,16 @@ def create_app(config_name=None):
     # Initialize Flask app
     app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
     app.config.from_object(config[config_name])
+
+    # --- NEW: Configure SQLAlchemy Engine Options for Connection Pooling ---
+    # This helps prevent 'SSL SYSCALL error: EOF detected' by managing database connections.
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,  # Test connections before handing them out from the pool
+        'pool_recycle': 3600    # Recycle connections every hour (3600 seconds)
+                                # This closes connections that have been idle for too long,
+                                # preventing them from becoming stale.
+    }
+    # --- END NEW ---
     
     # Initialize extensions
     db.init_app(app)
@@ -121,12 +131,6 @@ def create_app(config_name=None):
 # This block ensures that create_app() is called once when the module is loaded
 # and the app and socketio instances are available for gunicorn.
 app, socketio = create_app()
-
-# The `db.create_all()` and seeding logic should ideally be inside `create_app()`
-# or managed by a separate script/command for production deployments.
-# Moving this logic into create_app() avoids potential issues with app context
-# when gunicorn loads the application.
-# The previous module-level db.create_all() and seeding block has been removed from here.
 
 if __name__ == '__main__':
     # When running directly (e.g., python main.py), use socketio.run
