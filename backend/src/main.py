@@ -75,5 +75,16 @@ def create_app(config_name=None):
 
 app, socketio = create_app()
 
+# Initialize database on startup
+with app.app_context():
+    try:
+        db.create_all()
+        # Try to seed database if it's empty
+        from src.seed_data import seed_all
+        seed_all()
+        print("Database initialized and seeded successfully!")
+    except Exception as e:
+        print(f"Database initialization warning: {e}")
+
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
