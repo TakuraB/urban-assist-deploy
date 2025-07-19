@@ -2,10 +2,8 @@
 export default {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{js,jsx}',
-    './components/**/*.{js,jsx}',
-    './app/**/*.{js,jsx}',
-    './src/**/*.{js,jsx}',
+    "./index.html", // Include if you have Tailwind classes directly in index.html
+    "./src/**/*.{js,jsx,ts,tsx}", // This covers all files in frontend/src/ and its subdirectories
   ],
   prefix: "",
   theme: {
@@ -74,5 +72,4 @@ export default {
     },
   },
   plugins: [],
-}
-
+};
