@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/AuthContext' // Ensure this path is correct
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
+import {
   Calendar,
   Clock,
   DollarSign,
@@ -22,11 +22,12 @@ import {
 } from 'lucide-react'
 
 const Dashboard = () => {
-  const { user, API_BASE_URL, token } = useAuth()
+  // Destructure authFetch from useAuth
+  const { user, loading: authLoading, API_BASE_URL, authFetch, getBookings, getRunners } = useAuth() // Added authFetch, getBookings, getRunners
   const [bookings, setBookings] = useState([])
   const [runnerBookings, setRunnerBookings] = useState([])
   const [runnerProfile, setRunnerProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) // Local loading state for dashboard data
   const [stats, setStats] = useState({
     totalBookings: 0,
     completedBookings: 0,
@@ -34,12 +35,17 @@ const Dashboard = () => {
     averageRating: 0
   })
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
+  // Combine loading states: dashboard data loading AND auth context loading
+  const overallLoading = loading || authLoading;
 
-  const fetchDashboardData = async () => {
+  // Memoize fetchDashboardData to ensure stable dependency for useEffect
+  const fetchDashboardData = useCallback(async () => {
+    if (!user) { // Only fetch if user is authenticated
+      setLoading(false);
+      return;
+    }
     try {
+      // Use Promise.all to fetch data concurrently
       await Promise.all([
         fetchBookings(),
         fetchRunnerProfile(),
@@ -50,19 +56,21 @@ const Dashboard = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user]); // Depend on user from auth context
 
-  const fetchBookings = async () => {
+  // Fetch dashboard data when user or authLoading state changes
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]); // Depend on the memoized fetchDashboardData
+
+  // Memoize fetchBookings
+  const fetchBookings = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      // Use authFetch for this API call
+      const response = await authFetch(`${API_BASE_URL}/bookings`);
+      const data = await response.json();
 
       if (response.ok) {
-        const data = await response.json()
         setBookings(data.bookings)
         
         // Calculate stats
@@ -73,49 +81,63 @@ const Dashboard = () => {
           totalBookings: data.bookings.length,
           completedBookings: completed.length,
           totalSpent,
-          averageRating: 4.5 // This would come from reviews
+          averageRating: 4.5 // This would come from reviews, consider fetching actual reviews
         })
+      } else {
+        console.error('Failed to fetch bookings:', data.error || response.statusText);
+        setBookings([]); // Clear bookings on error
       }
     } catch (error) {
-      console.error('Error fetching bookings:', error)
+      console.error('Error fetching bookings:', error);
+      setBookings([]); // Clear bookings on error
     }
-  }
+  }, [API_BASE_URL, authFetch]); // Dependencies for useCallback
 
-  const fetchRunnerProfile = async () => {
+  // Memoize fetchRunnerProfile
+  const fetchRunnerProfile = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/runners/profile`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      // Use authFetch for this API call
+      const response = await authFetch(`${API_BASE_URL}/runners/profile`);
+      const data = await response.json();
 
       if (response.ok) {
-        const data = await response.json()
-        setRunnerProfile(data)
+        setRunnerProfile(data);
+      } else {
+        // A 404 here means the user is not a runner, which is expected for some users.
+        // Only log if it's not a 404 to avoid excessive console noise.
+        if (response.status !== 404) {
+          console.error('Failed to fetch runner profile:', data.error || response.statusText);
+        }
+        setRunnerProfile(null); // Clear runner profile if not found or error
       }
     } catch (error) {
-      // User might not be a runner, which is fine
+      console.error('Error fetching runner profile:', error);
+      setRunnerProfile(null); // Clear runner profile on error
     }
-  }
+  }, [API_BASE_URL, authFetch]); // Dependencies for useCallback
 
-  const fetchRunnerBookings = async () => {
+  // Memoize fetchRunnerBookings
+  const fetchRunnerBookings = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings?as_runner=true`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      // Use authFetch for this API call
+      const response = await authFetch(`${API_BASE_URL}/bookings?as_runner=true`);
+      const data = await response.json();
 
       if (response.ok) {
-        const data = await response.json()
-        setRunnerBookings(data.bookings)
+        setRunnerBookings(data.bookings);
+      } else {
+        // A 404 here means the user is not a runner, which is expected for some users.
+        if (response.status !== 404) {
+          console.error('Failed to fetch runner bookings:', data.error || response.statusText);
+        }
+        setRunnerBookings([]); // Clear runner bookings on error
       }
     } catch (error) {
-      // User might not be a runner
+      console.error('Error fetching runner bookings:', error);
+      setRunnerBookings([]); // Clear runner bookings on error
     }
-  }
+  }, [API_BASE_URL, authFetch]); // Dependencies for useCallback
+
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -139,12 +161,31 @@ const Dashboard = () => {
     }
   }
 
-  if (loading) {
+  if (overallLoading) { // Use overallLoading
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     )
+  }
+
+  // Redirect to login if user is not authenticated after loading
+  if (!user) {
+    // This scenario should ideally be handled by a ProtectedRoute or similar wrapper
+    // but as a fallback, we can redirect here.
+    // However, given the AuthProvider setup, this might not be strictly necessary
+    // if the parent routes are protected.
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600 mb-4">Please log in to view your dashboard.</p>
+          <Button asChild>
+            <Link to="/login">Go to Login</Link>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -460,4 +501,3 @@ const Dashboard = () => {
 }
 
 export default Dashboard
-
