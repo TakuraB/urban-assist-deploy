@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/AuthContext' // Ensure this path is correct
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Star, 
-  MapPin, 
-  DollarSign, 
-  Clock, 
+import {
+  Star,
+  MapPin,
+  DollarSign,
+  Clock,
   Calendar,
   MessageCircle,
   Shield,
@@ -20,43 +20,67 @@ import {
 
 const RunnerProfile = () => {
   const { id } = useParams()
-  const { API_BASE_URL, user } = useAuth()
+  // Destructure authFetch from useAuth
+  const { API_BASE_URL, user, authFetch } = useAuth() // Added authFetch
   const [runner, setRunner] = useState(null)
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchRunnerProfile()
-    fetchRunnerReviews()
-  }, [id])
-
-  const fetchRunnerProfile = async () => {
+  // Memoize fetchRunnerProfile to ensure stable dependency for useEffect
+  const fetchRunnerProfile = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/runners/${id}`)
-      const data = await response.json()
+      // Use authFetch for this API call
+      const response = await authFetch(`${API_BASE_URL}/runners/${id}`);
+      const data = await response.json();
 
       if (response.ok) {
-        setRunner(data)
+        setRunner(data);
+      } else {
+        // Handle specific errors if needed, e.g., if runner not found (404)
+        console.error('Failed to fetch runner profile:', data.error || response.statusText);
+        setRunner(null); // Explicitly set to null if not found
       }
     } catch (error) {
-      console.error('Error fetching runner profile:', error)
+      // authFetch would have handled 401/403. This catches network errors or re-thrown errors.
+      console.error('Error fetching runner profile:', error);
+      setRunner(null); // Ensure runner is null on error
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  }, [id, API_BASE_URL, authFetch]); // Dependencies for useCallback
 
-  const fetchRunnerReviews = async () => {
+  // Memoize fetchRunnerReviews
+  const fetchRunnerReviews = useCallback(async (runnerUserId) => {
+    if (!runnerUserId) return; // Ensure runnerUserId is available before fetching reviews
     try {
-      const response = await fetch(`${API_BASE_URL}/reviews?reviewee_id=${runner?.user_id}`)
-      const data = await response.json()
+      // Use authFetch for this API call
+      const response = await authFetch(`${API_BASE_URL}/reviews?reviewee_id=${runnerUserId}`);
+      const data = await response.json();
 
       if (response.ok) {
-        setReviews(data.reviews)
+        setReviews(data.reviews);
+      } else {
+        console.error('Failed to fetch runner reviews:', data.error || response.statusText);
+        setReviews([]); // Set to empty array on error
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error)
+      console.error('Error fetching reviews:', error);
+      setReviews([]); // Set to empty array on error
     }
-  }
+  }, [API_BASE_URL, authFetch]); // Dependencies for useCallback
+
+  useEffect(() => {
+    // When the component mounts or 'id' changes, fetch the runner profile.
+    // fetchRunnerReviews depends on runner.user_id, so it needs to be called after runner is set.
+    fetchRunnerProfile();
+  }, [fetchRunnerProfile]); // Depend on the memoized fetchRunnerProfile
+
+  useEffect(() => {
+    // Fetch reviews only once runner data is available and stable
+    if (runner && runner.user && runner.user.id) {
+      fetchRunnerReviews(runner.user.id);
+    }
+  }, [runner, fetchRunnerReviews]); // Depend on runner and the memoized fetchRunnerReviews
 
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -93,7 +117,7 @@ const RunnerProfile = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Runner not found</h2>
-          <p className="text-gray-600 mb-4">The runner you're looking for doesn't exist.</p>
+          <p className="text-gray-600 mb-4">The runner you're looking for doesn't exist or an error occurred.</p>
           <Button asChild>
             <Link to="/runners">Back to Runners</Link>
           </Button>
@@ -341,4 +365,3 @@ const RunnerProfile = () => {
 }
 
 export default RunnerProfile
-
