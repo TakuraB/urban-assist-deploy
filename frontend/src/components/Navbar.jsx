@@ -6,9 +6,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { User, LogOut, Settings, MapPin } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { 
+  User, 
+  LogOut, 
+  Settings, 
+  MapPin, 
+  Shield, 
+  MessageSquare,
+  Bell,
+  Crown
+} from 'lucide-react'
 
 const Navbar = () => {
   const { user, logout } = useAuth()
@@ -48,9 +59,19 @@ const Navbar = () => {
                 {user.role === 'admin' && (
                   <Link 
                     to="/admin" 
-                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
                   >
-                    Admin
+                    <Crown className="h-4 w-4" />
+                    <span>Admin</span>
+                  </Link>
+                )}
+                {(user.role === 'moderator' || user.role === 'admin') && (
+                  <Link 
+                    to="/moderator" 
+                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>Moderate</span>
                   </Link>
                 )}
               </>
@@ -59,44 +80,68 @@ const Navbar = () => {
 
           <div className="flex items-center space-x-4">
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.profile_image} alt={user.username} />
-                      <AvatarFallback>
-                        {user.first_name?.[0]}{user.last_name?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <div className="flex items-center justify-start gap-2 p-2">
-                    <div className="flex flex-col space-y-1 leading-none">
-                      <p className="font-medium">{user.first_name} {user.last_name}</p>
-                      <p className="w-[200px] truncate text-sm text-muted-foreground">
-                        {user.email}
-                      </p>
+              <div className="flex items-center space-x-2">
+                {/* Notifications */}
+                <Button variant="ghost" size="sm" className="relative">
+                  <Bell className="h-5 w-5" />
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">
+                    3
+                  </Badge>
+                </Button>
+                
+                {/* Messages */}
+                <Button variant="ghost" size="sm" className="relative">
+                  <MessageSquare className="h-5 w-5" />
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">
+                    2
+                  </Badge>
+                </Button>
+
+                {/* User Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.profile_image} alt={user.username} />
+                        <AvatarFallback>
+                          {user.first_name?.[0]}{user.last_name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <div className="flex items-center justify-start gap-2 p-2">
+                      <div className="flex flex-col space-y-1 leading-none">
+                        <p className="font-medium">{user.first_name} {user.last_name}</p>
+                        <p className="w-[200px] truncate text-sm text-muted-foreground">
+                          {user.email}
+                        </p>
+                        <Badge variant="outline" className="w-fit text-xs">
+                          {user.role}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Dashboard</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard" className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/settings" className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
               <div className="flex items-center space-x-2">
                 <Button variant="ghost" asChild>

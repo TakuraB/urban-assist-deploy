@@ -1,8 +1,15 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+import enum
 
 db = SQLAlchemy()
+
+class UserRole(enum.Enum):
+    USER = 'user'
+    RUNNER = 'runner'
+    MODERATOR = 'moderator'
+    ADMIN = 'admin'
 
 # Association table for many-to-many relationship between runners and services
 runner_services = db.Table('runner_services',
@@ -19,9 +26,13 @@ class User(db.Model):
     last_name = db.Column(db.String(50), nullable=False)
     phone = db.Column(db.String(20))
     profile_image = db.Column(db.String(255))
+    role = db.Column(db.Enum(UserRole), default=UserRole.USER)
     is_active = db.Column(db.Boolean, default=True)
-    is_admin = db.Column(db.Boolean, default=False)
-    is_moderator = db.Column(db.Boolean, default=False)
+    is_verified = db.Column(db.Boolean, default=False)
+    email_verified = db.Column(db.Boolean, default=False)
+    two_factor_enabled = db.Column(db.Boolean, default=False)
+    two_factor_secret = db.Column(db.String(255))
+    last_login = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -31,12 +42,25 @@ class User(db.Model):
     reviews_received = db.relationship('Review', foreign_keys='Review.reviewee_id', backref='reviewee', lazy='dynamic')
     sent_messages = db.relationship('ChatMessage', foreign_keys='ChatMessage.sender_id', backref='sender', lazy='dynamic')
     received_messages = db.relationship('ChatMessage', foreign_keys='ChatMessage.receiver_id', backref='receiver', lazy='dynamic')
+    notifications = db.relationship('Notification', backref='user', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def has_role(self, role):
+        return self.role == role
+
+    def is_admin(self):
+        return self.role == UserRole.ADMIN
+
+    def is_moderator(self):
+        return self.role == UserRole.MODERATOR
+
+    def is_runner(self):
+        return self.role == UserRole.RUNNER
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -50,9 +74,12 @@ class User(db.Model):
             'last_name': self.last_name,
             'phone': self.phone,
             'profile_image': self.profile_image,
+            'role': self.role.value if self.role else 'user',
             'is_active': self.is_active,
-            'is_admin': self.is_admin,
-            'is_moderator': self.is_moderator,
+            'is_verified': self.is_verified,
+            'email_verified': self.email_verified,
+            'two_factor_enabled': self.two_factor_enabled,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -243,4 +270,61 @@ class ChatMessage(db.Model):
             'file_url': self.file_url,
             'is_read': self.is_read,
             'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    notification_type = db.Column(db.String(50), nullable=False)  # booking, chat, review, system
+    related_id = db.Column(db.Integer)  # ID of related booking, message, etc.
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Notification {self.title}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'title': self.title,
+            'message': self.message,
+            'notification_type': self.notification_type,
+            'related_id': self.related_id,
+            'is_read': self.is_read,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class Payment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(db.Integer, db.ForeignKey('booking.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(3), default='USD')
+    payment_method = db.Column(db.String(50))  # stripe, paypal, etc.
+    payment_intent_id = db.Column(db.String(255))  # External payment processor ID
+    status = db.Column(db.String(20), default='pending')  # pending, completed, failed, refunded
+    transaction_id = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    booking = db.relationship('Booking', backref='payments')
+
+    def __repr__(self):
+        return f'<Payment {self.id}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'booking_id': self.booking_id,
+            'amount': self.amount,
+            'currency': self.currency,
+            'payment_method': self.payment_method,
+            'payment_intent_id': self.payment_intent_id,
+            'status': self.status,
+            'transaction_id': self.transaction_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

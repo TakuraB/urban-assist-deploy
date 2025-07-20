@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models.user import User, Runner, Service, Booking, Review, db
+from src.models.user import User, Runner, Service, Booking, Review, ChatMessage, db
 from datetime import datetime
 
 booking_bp = Blueprint('booking', __name__)
@@ -263,6 +263,70 @@ def delete_booking():
         db.session.commit()
         
         return jsonify({'message': 'Booking deleted successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@booking_bp.route('/bookings/<int:booking_id>/messages', methods=['GET'])
+@jwt_required()
+def get_booking_messages(booking_id):
+    try:
+        current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
+        booking = Booking.query.get_or_404(booking_id)
+        
+        # Check if user has access to this booking
+        runner = Runner.query.filter_by(user_id=user_id).first()
+        if booking.user_id != user_id and (not runner or booking.runner_id != runner.id):
+            return jsonify({'error': 'Access denied'}), 403
+        
+        messages = ChatMessage.query.filter_by(booking_id=booking_id).order_by(ChatMessage.created_at.asc()).all()
+        
+        return jsonify({
+            'messages': [message.to_dict() for message in messages]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@booking_bp.route('/bookings/<int:booking_id>/messages', methods=['POST'])
+@jwt_required()
+def send_booking_message(booking_id):
+    try:
+        current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
+        booking = Booking.query.get_or_404(booking_id)
+        
+        # Check if user has access to this booking
+        runner = Runner.query.filter_by(user_id=user_id).first()
+        if booking.user_id != user_id and (not runner or booking.runner_id != runner.id):
+            return jsonify({'error': 'Access denied'}), 403
+        
+        data = request.json
+        
+        if not data.get('message'):
+            return jsonify({'error': 'Message is required'}), 400
+        
+        # Determine receiver (the other person in the booking)
+        receiver_id = booking.runner.user_id if booking.user_id == user_id else booking.user_id
+        
+        # Create message
+        message = ChatMessage(
+            booking_id=booking_id,
+            sender_id=user_id,
+            receiver_id=receiver_id,
+            message=data['message'],
+            message_type=data.get('message_type', 'text'),
+            file_url=data.get('file_url')
+        )
+        
+        db.session.add(message)
+        db.session.commit()
+        
+        return jsonify({
+            'message': message.to_dict()
+        }), 201
         
     except Exception as e:
         db.session.rollback()

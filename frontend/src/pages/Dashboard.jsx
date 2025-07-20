@@ -18,7 +18,8 @@ import {
   Eye,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  MessageSquare
 } from 'lucide-react'
 
 const Dashboard = () => {
@@ -309,7 +310,13 @@ const Dashboard = () => {
                           <span className="text-sm">${booking.total_amount}</span>
                         </div>
                       </div>
-                      <div className="mt-4 flex justify-end">
+                      <div className="mt-4 flex justify-end space-x-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/chat/${booking.id}`}>
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Chat
+                          </Link>
+                        </Button>
                         <Button variant="outline" size="sm" asChild>
                           <Link to={`/booking/${booking.id}`}>
                             <Eye className="h-4 w-4 mr-2" />

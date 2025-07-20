@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import Chat from '../components/Chat'
 import { Button } from '@/components/ui/button'
@@ -141,10 +141,18 @@ const BookingDetails = () => {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{booking.title}</h1>
               <p className="text-gray-600">Booking #{booking.id}</p>
             </div>
-            <Badge className={getStatusColor(booking.status)}>
-              {getStatusIcon(booking.status)}
-              <span className="ml-1 capitalize">{booking.status}</span>
-            </Badge>
+            <div className="flex items-center space-x-3">
+              <Button asChild>
+                <Link to={`/chat/${booking.id}`}>
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Chat
+                </Link>
+              </Button>
+              <Badge className={getStatusColor(booking.status)}>
+                {getStatusIcon(booking.status)}
+                <span className="ml-1 capitalize">{booking.status}</span>
+              </Badge>
+            </div>
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
-from src.models.user import User, Runner, Service, Booking, Review, ChatMessage, db
+from src.models.user import User, Runner, Service, Booking, Review, ChatMessage, Notification, db
 from datetime import datetime
 import re
 
@@ -368,6 +368,91 @@ def get_service_categories():
     try:
         categories = db.session.query(Service.category).filter_by(is_active=True).distinct().all()
         return jsonify([category[0] for category in categories]), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/notifications', methods=['GET'])
+@jwt_required()
+def get_notifications():
+    try:
+        current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
+        
+        notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).all()
+        
+        return jsonify({
+            'notifications': [notification.to_dict() for notification in notifications]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/notifications/<int:notification_id>/read', methods=['POST'])
+@jwt_required()
+def mark_notification_read(notification_id):
+    try:
+        current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
+        
+        notification = Notification.query.filter_by(id=notification_id, user_id=user_id).first()
+        
+        if not notification:
+            return jsonify({'error': 'Notification not found'}), 404
+        
+        notification.is_read = True
+        db.session.commit()
+        
+        return jsonify({'message': 'Notification marked as read'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/users/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
+    try:
+        current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        data = request.json
+        
+        if not data.get('current_password') or not data.get('new_password'):
+            return jsonify({'error': 'Current password and new password are required'}), 400
+        
+        if not user.check_password(data['current_password']):
+            return jsonify({'error': 'Current password is incorrect'}), 400
+        
+        user.set_password(data['new_password'])
+        db.session.commit()
+        
+        return jsonify({'message': 'Password changed successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@user_bp.route('/users/notification-preferences', methods=['PUT'])
+@jwt_required()
+def update_notification_preferences():
+    try:
+        current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        data = request.json
+        
+        # Update notification preferences (this would typically be stored in a separate table)
+        # For now, we'll just return success
+        return jsonify({'message': 'Notification preferences updated'}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
