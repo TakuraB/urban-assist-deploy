@@ -41,9 +41,18 @@ export const AuthProvider = ({ children }) => {
     // Only add Authorization header if a token exists
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+      console.log('DEBUG: Adding Authorization header with token:', token.substring(0, 20) + '...');
+    } else {
+      console.log('DEBUG: No token available for request to:', url);
     }
 
+    console.log('DEBUG: Making request to:', url);
+    console.log('DEBUG: Headers:', headers);
+
     const response = await fetch(url, { ...options, headers });
+
+    console.log('DEBUG: Response status:', response.status);
+    console.log('DEBUG: Response headers:', Object.fromEntries(response.headers.entries()));
 
     // Handle 401 Unauthorized globally for all authenticated fetches
     if (response.status === 401 || response.status === 403) {
@@ -92,6 +101,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('DEBUG: Attempting login for email:', email);
+      
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -101,8 +112,11 @@ export const AuthProvider = ({ children }) => {
       })
 
       const data = await response.json()
+      console.log('DEBUG: Login response status:', response.status);
+      console.log('DEBUG: Login response data:', data);
 
       if (response.ok) {
+        console.log('DEBUG: Login successful, setting token:', data.access_token.substring(0, 20) + '...');
         setToken(data.access_token)
         setUser(data.user)
         localStorage.setItem('token', data.access_token)
@@ -110,6 +124,7 @@ export const AuthProvider = ({ children }) => {
         // localStorage.setItem('refresh_token', data.refresh_token);
         return { success: true }
       } else {
+        console.log('DEBUG: Login failed:', data.error);
         return { success: false, error: data.error || 'Login failed' }
       }
     } catch (error) {

@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
@@ -62,20 +62,32 @@ def create_app(config_name=None):
     # Ensure init_socketio also uses app.config['CORS_ORIGINS'] for its cors_allowed_origins
     socketio = init_socketio(app)
     
+    # Add request logging middleware
+    @app.before_request
+    def log_request_info():
+        if request.path.startswith('/api/'):
+            print(f"DEBUG: Request to {request.path}")
+            print(f"DEBUG: Method: {request.method}")
+            print(f"DEBUG: Authorization header: {request.headers.get('Authorization')}")
+            print(f"DEBUG: All headers: {dict(request.headers)}")
+    
     # JWT error handlers
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
         """Callback for expired JWT tokens."""
+        print(f"DEBUG: JWT Token expired - Header: {jwt_header}, Payload: {jwt_payload}")
         return {'error': 'Token has expired'}, 401
     
     @jwt.invalid_token_loader
     def invalid_token_callback(error):
         """Callback for invalid JWT tokens."""
+        print(f"DEBUG: JWT Invalid token - Error: {error}")
         return {'error': 'Invalid token'}, 401
     
     @jwt.unauthorized_loader
     def missing_token_callback(error):
         """Callback for missing authorization tokens."""
+        print(f"DEBUG: JWT Missing token - Error: {error}")
         return {'error': 'Authorization token is required'}, 401
     
     # Register blueprints

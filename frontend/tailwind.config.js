@@ -1,11 +1,10 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   darkMode: ["class"],
   content: [
-    "./index.html", // Include if you have Tailwind classes directly in index.html
-    "./src/**/*.{js,jsx,ts,tsx}", // This covers all files in frontend/src/ and its subdirectories
+    "./index.html",
+    "./src/**/*.{js,jsx,ts,tsx}",
   ],
-  prefix: "",
   theme: {
     container: {
       center: true,

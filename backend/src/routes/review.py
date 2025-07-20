@@ -12,6 +12,7 @@ review_bp = Blueprint('review', __name__)
 def create_review():
     try:
         current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
         data = request.json
         
         # Validate required fields

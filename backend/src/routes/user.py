@@ -48,8 +48,8 @@ def register():
         db.session.commit()
         
         # Create tokens
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         
         return jsonify({
             'message': 'User registered successfully',
@@ -79,8 +79,11 @@ def login():
             return jsonify({'error': 'Account is deactivated'}), 401
         
         # Create tokens
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
+        
+        print(f"DEBUG: Login successful for user {user.username} (ID: {user.id})")
+        print(f"DEBUG: Generated access token: {access_token[:20]}...")
         
         return jsonify({
             'message': 'Login successful',
@@ -90,6 +93,7 @@ def login():
         }), 200
         
     except Exception as e:
+        print(f"DEBUG: Login exception: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @user_bp.route('/auth/refresh', methods=['POST'])
@@ -97,12 +101,13 @@ def login():
 def refresh():
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        user_id = int(current_user_id)
+        user = User.query.get(user_id)
         
         if not user or not user.is_active:
             return jsonify({'error': 'User not found or inactive'}), 404
         
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         
         return jsonify({
             'access_token': access_token,
@@ -118,14 +123,22 @@ def refresh():
 def get_profile():
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        print(f"DEBUG: JWT Identity extracted: {current_user_id}")
+        print(f"DEBUG: Authorization header: {request.headers.get('Authorization')}")
+        
+        # Convert string ID back to integer for database lookup
+        user_id = int(current_user_id)
+        user = User.query.get(user_id)
         
         if not user:
+            print(f"DEBUG: User not found for ID: {user_id}")
             return jsonify({'error': 'User not found'}), 404
         
+        print(f"DEBUG: User found: {user.username}")
         return jsonify(user.to_dict()), 200
         
     except Exception as e:
+        print(f"DEBUG: Exception in get_profile: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @user_bp.route('/users/profile', methods=['PUT'])
@@ -133,7 +146,8 @@ def get_profile():
 def update_profile():
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        user_id = int(current_user_id)
+        user = User.query.get(user_id)
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
@@ -223,7 +237,8 @@ def get_runner(runner_id):
 def get_runner_profile():
     try:
         current_user_id = get_jwt_identity()
-        runner = Runner.query.filter_by(user_id=current_user_id).first()
+        user_id = int(current_user_id)
+        runner = Runner.query.filter_by(user_id=user_id).first()
         
         if not runner:
             return jsonify({'error': 'Runner profile not found'}), 404
@@ -238,9 +253,10 @@ def get_runner_profile():
 def create_runner_profile():
     try:
         current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
         
         # Check if runner profile already exists
-        existing_runner = Runner.query.filter_by(user_id=current_user_id).first()
+        existing_runner = Runner.query.filter_by(user_id=user_id).first()
         if existing_runner:
             return jsonify({'error': 'Runner profile already exists'}), 400
         
@@ -253,7 +269,7 @@ def create_runner_profile():
                 return jsonify({'error': f'{field} is required'}), 400
         
         runner = Runner(
-            user_id=current_user_id,
+            user_id=user_id,
             bio=data.get('bio', ''),
             hourly_rate=data['hourly_rate'],
             city=data['city'],

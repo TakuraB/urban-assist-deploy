@@ -11,6 +11,7 @@ booking_bp = Blueprint('booking', __name__)
 def create_booking():
     try:
         current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
         data = request.json
         
         # Validate required fields
@@ -44,7 +45,7 @@ def create_booking():
         
         # Create booking
         booking = Booking(
-            user_id=current_user_id,
+            user_id=user_id,
             runner_id=data['runner_id'],
             service_id=data['service_id'],
             title=data['title'],
@@ -76,6 +77,7 @@ def create_booking():
 def get_bookings():
     try:
         current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         status = request.args.get('status')
@@ -83,14 +85,14 @@ def get_bookings():
         
         if as_runner:
             # Get bookings where current user is the runner
-            runner = Runner.query.filter_by(user_id=current_user_id).first()
+            runner = Runner.query.filter_by(user_id=user_id).first()
             if not runner:
                 return jsonify({'error': 'Runner profile not found'}), 404
             
             query = Booking.query.filter_by(runner_id=runner.id)
         else:
             # Get bookings where current user is the client
-            query = Booking.query.filter_by(user_id=current_user_id)
+            query = Booking.query.filter_by(user_id=user_id)
         
         if status:
             query = query.filter_by(status=status)
@@ -117,11 +119,12 @@ def get_bookings():
 def get_booking(booking_id):
     try:
         current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
         booking = Booking.query.get_or_404(booking_id)
         
         # Check if user has access to this booking
-        runner = Runner.query.filter_by(user_id=current_user_id).first()
-        if booking.user_id != current_user_id and (not runner or booking.runner_id != runner.id):
+        runner = Runner.query.filter_by(user_id=user_id).first()
+        if booking.user_id != user_id and (not runner or booking.runner_id != runner.id):
             return jsonify({'error': 'Access denied'}), 403
         
         return jsonify(booking.to_dict()), 200
@@ -134,6 +137,7 @@ def get_booking(booking_id):
 def update_booking_status():
     try:
         current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
         booking_id = request.view_args['booking_id']
         booking = Booking.query.get_or_404(booking_id)
         data = request.json
@@ -148,7 +152,7 @@ def update_booking_status():
             return jsonify({'error': 'Invalid status'}), 400
         
         # Check permissions based on status change
-        runner = Runner.query.filter_by(user_id=current_user_id).first()
+        runner = Runner.query.filter_by(user_id=user_id).first()
         
         if new_status in ['accepted', 'declined', 'in_progress']:
             # Only runner can accept, decline, or start booking
@@ -156,7 +160,7 @@ def update_booking_status():
                 return jsonify({'error': 'Only the runner can update this status'}), 403
         elif new_status in ['cancelled']:
             # Both user and runner can cancel
-            if booking.user_id != current_user_id and (not runner or booking.runner_id != runner.id):
+            if booking.user_id != user_id and (not runner or booking.runner_id != runner.id):
                 return jsonify({'error': 'Access denied'}), 403
         elif new_status == 'completed':
             # Both can mark as completed, but let's allow runner to do it
@@ -189,10 +193,11 @@ def update_booking_status():
 def update_booking():
     try:
         current_user_id = get_jwt_identity()
+        user_id = int(current_user_id)
         booking = Booking.query.get_or_404(booking_id)
         
         # Only the user who created the booking can update it
-        if booking.user_id != current_user_id:
+        if booking.user_id != user_id:
             return jsonify({'error': 'Access denied'}), 403
         
         # Can only update pending bookings
