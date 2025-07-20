@@ -88,7 +88,6 @@ const Navbar = () => {
                     3
                   </Badge>
                 </Button>
-                
                 {/* Messages */}
                 <Button variant="ghost" size="sm" className="relative">
                   <MessageSquare className="h-5 w-5" />
@@ -96,7 +95,6 @@ const Navbar = () => {
                     2
                   </Badge>
                 </Button>
-
                 {/* User Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -141,6 +139,10 @@ const Navbar = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                {/* Always-visible Logout button */}
+                <Button variant="outline" size="sm" className="ml-2" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-1" /> Logout
+                </Button>
               </div>
             ) : (
               <div className="flex items-center space-x-2">

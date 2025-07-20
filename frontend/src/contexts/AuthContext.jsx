@@ -99,6 +99,28 @@ export const AuthProvider = ({ children }) => {
     fetchUserProfile();
   }, [fetchUserProfile]); // Depend on the memoized fetchUserProfile
 
+  // --- Inactivity Auto-Logout ---
+  useEffect(() => {
+    if (!token) return;
+    let timer;
+    const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
+    const resetTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        console.log('Auto-logout: User inactive for 30 minutes.');
+        logout();
+      }, INACTIVITY_LIMIT);
+    };
+    // Listen for user activity
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    resetTimer();
+    return () => {
+      if (timer) clearTimeout(timer);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [token, logout]);
+
   const login = async (email, password) => {
     try {
       console.log('DEBUG: Attempting login for email:', email);
